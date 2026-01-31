@@ -1,49 +1,39 @@
 # Vanderbilt SPC (Web UI)
 
-This integration connects Home Assistant to a Vanderbilt SPC alarm panel using its built-in Web UI.
+This integration connects Home Assistant to a Vanderbilt SPC alarm panel using its built-in web UI.
 
-It provides:
+Unlike the [official integration](https://www.home-assistant.io/integrations/spc/), it does not
+require a gateway.
 
-- An `alarm_control_panel` entity for **All Areas**
-- Live state updates (armed away / disarmed)
-- Arm / disarm control from Home Assistant
-- Configurable polling interval
-
-No external bridge is required.
+- Provides an `alarm_control_panel` entity for **All Areas** only
+- Supports "Armed away" / "Disarmed" states only
+- State updates implemented by polling (configurable interval)
+- Doesn't require a gateway
 
 ---
 
-## ⚠️ Important security note
+## Security
 
-SPC panels use a **very old TLS implementation**:
+SPC panels use a **very old TLS implementation** that is considered unsafe nowadays.
 
-- TLS 1.2 only
-- Self-signed certificates
-- Legacy RSA cipher (`AES256-SHA`)
-- Unsafe renegotiation
+The integration deliberately relaxes OpenSSL security settings to interface with the panel.
 
-To support this, the integration deliberately relaxes OpenSSL security settings.
-
-**Do not expose your SPC panel to the public internet.**  
+**Never expose your SPC panel to the public internet.**
 Use this integration only on trusted local networks or via VPN.
 
 ---
 
 ## Installation
 
-### Manual (custom integration)
+### Manual
 
 1. Copy the `custom_components/spc_webui` folder in `config/custom_components` in Home Assistant.
 2. Restart Home Assistant.
 
----
+### HACS
 
-## Limitations
-
-- Only **All Areas** is supported
-- Only `Unset` and `Fullset` are implemented
-- No event push – polling only
-- Depends on the Web UI remaining compatible
+1. Add this repository to HACS.
+2. Search for it by name and install it.
 
 ---
 
