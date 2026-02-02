@@ -1,6 +1,7 @@
 import logging
 import re
 import ssl
+from urllib.parse import urlparse
 
 import httpx
 
@@ -58,6 +59,14 @@ def get_ssl_context():
     return ctx
 
 
+def normalize_url(url, default_scheme="https"):
+    """Add default scheme if missing."""
+    parsed = urlparse(url)
+    if not parsed.scheme:
+        return f"{default_scheme}://{url}"
+    return url
+
+
 def parse_title(html):
     """Return [model, site] parsed from the HTML title, falling back to blanks."""
     re_match = RE_TITLE.search(html)
@@ -106,17 +115,19 @@ class SPCSession:
     """Async helper around the SPC WebUI session workflow and HTML parsing."""
 
     def __init__(self, url, userid, password):
-        self._url = url
         self._userid = userid
         self._password = password
 
         self.client = httpx.AsyncClient(
-            base_url=url,
+            base_url=normalize_url(url),
             verify=get_ssl_context(),
             timeout=httpx.Timeout(10.0),
         )
 
-        self.creds = {"userid": userid, "password": password}
+        self.creds = {
+            "userid": userid,
+            "password": password,
+        }
 
         self.sid = ""
         self.model = ""
