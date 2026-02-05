@@ -31,7 +31,7 @@ class SPCZoneStatus(CoordinatorEntity, SensorEntity):
     _attr_translation_key = "zone_status"
     _attr_options = [
         "normal",
-        "open",
+        "actuated",
         "tamper",
         "disconnected",
         "inhibited",

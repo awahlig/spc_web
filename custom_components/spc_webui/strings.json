@@ -31,7 +31,7 @@
       "zone_status": {
         "state": {
           "normal": "Normal",
-          "open": "Open",
+          "actuated": "Actuated",
           "tamper": "Tamper",
           "disconnected": "Disconnected",
           "inhibited": "Inhibited"
