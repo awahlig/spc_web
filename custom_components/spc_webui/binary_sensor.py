@@ -32,8 +32,8 @@ async def async_setup_entry(hass, entry, async_add_entities):
     ])
 
 
-class SPCZoneInput(CoordinatorEntity, BinarySensorEntity):
-    """Binary sensor representing SPC zone active state."""
+class SPCZoneOpen(CoordinatorEntity, BinarySensorEntity):
+    """Binary sensor representing SPC zone open state."""
 
     _attr_has_entity_name = True
 
@@ -44,17 +44,17 @@ class SPCZoneInput(CoordinatorEntity, BinarySensorEntity):
         zone_name = zone["zone_name"]
         device_class = DEVICE_CLASS.get(zone["zone_type"])
         serial_number = device_info["serial_number"]
-        unique_id = f"spc-{serial_number}-{zone_id}"
+        unique_id = f"spc{serial_number}-zone{zone_id}-open"
 
         self._zone_id = zone_id
-        self._attr_name = zone_name
+        self._attr_name = f"Zone {zone_id} {zone_name} Open"
         self._attr_device_class = device_class
         self._attr_unique_id = unique_id
         self._attr_device_info = device_info
 
     @property
     def is_on(self):
-        """Return the current zone input state."""
+        """Return the current zone open state."""
         zone = self.coordinator.data["zones"].get(self._zone_id)
         if zone:
             return (zone["input"] == "open")

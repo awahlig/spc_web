@@ -151,6 +151,7 @@ def parse_zones(html):
             "area_id": int(m.group(3)),
             "area_name": m.group(4).strip(),
             "zone_type": m.group(5).strip().lower(),
+            # For inhibited zones, this shows the underlying status
             "input": m.group(6).strip().lower(),
             "status": m.group(7).strip().lower(),
         }

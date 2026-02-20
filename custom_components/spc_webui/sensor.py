@@ -43,10 +43,10 @@ class SPCZoneStatus(CoordinatorEntity, SensorEntity):
         zone_id = zone["zone_id"]
         zone_name = zone["zone_name"]
         serial_number = device_info["serial_number"]
-        unique_id = f"spc-{serial_number}-{zone_id}-status"
+        unique_id = f"spc{serial_number}-zone{zone_id}-status"
 
         self._zone_id = zone_id
-        self._attr_name = f"{zone_name} status"
+        self._attr_name = f"Zone {zone_id} {zone_name} Status"
         self._attr_unique_id = unique_id
         self._attr_device_info = device_info
 

@@ -41,7 +41,7 @@ class SPCAlarmPanel(CoordinatorEntity, AlarmControlPanelEntity):
         self.spc = spc
 
         serial_number = device_info["serial_number"]
-        unique_id = f"spc-{serial_number}"
+        unique_id = f"spc{serial_number}-panel"
 
         self._attr_unique_id = unique_id
         self._attr_device_info = device_info
