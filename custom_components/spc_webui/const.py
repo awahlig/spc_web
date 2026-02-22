@@ -1,4 +1,5 @@
 DOMAIN = "spc_webui"
+MANUFACTURER = "Vanderbilt"
 
 CONF_URL = "url"
 CONF_USERID = "userid"

@@ -13,37 +13,37 @@ from .spc import SPCError
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up SPC alarm control panel entity from a config entry."""
     data = hass.data[DOMAIN][entry.entry_id]
+
     coordinator = data["coordinator"]
     spc = data["spc"]
-    device_info = data["device_info"]
+    alarm_device_info = data["alarm_device_info"]
+    unique_prefix = data["unique_prefix"]
 
     async_add_entities(
         [
-            SPCAlarmPanel(
+            SPCAlarm(
                 coordinator=coordinator,
                 spc=spc,
-                device_info=device_info,
+                device_info=alarm_device_info,
+                unique_prefix=unique_prefix,
             )
         ]
     )
 
 
-class SPCAlarmPanel(CoordinatorEntity, AlarmControlPanelEntity):
+class SPCAlarm(CoordinatorEntity, AlarmControlPanelEntity):
     """Alarm entity representing all SPC areas."""
 
     _attr_code_arm_required = False
     _attr_supported_features = AlarmControlPanelEntityFeature.ARM_AWAY
     _attr_has_entity_name = True
-    _attr_name = None
 
-    def __init__(self, coordinator, spc, device_info):
+    def __init__(self, coordinator, spc, device_info, unique_prefix):
         super().__init__(coordinator)
         self.spc = spc
 
-        serial_number = device_info["serial_number"]
-        unique_id = f"spc{serial_number}-panel"
-
-        self._attr_unique_id = unique_id
+        self._attr_name = "Alarm"
+        self._attr_unique_id = f"{unique_prefix}-alarm"
         self._attr_device_info = device_info
 
     @property

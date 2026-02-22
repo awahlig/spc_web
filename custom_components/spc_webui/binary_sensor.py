@@ -7,49 +7,59 @@ from homeassistant.components.binary_sensor import (
 from .const import DOMAIN
 
 
+ENTITY_NAME = {
+    "alarm": "Motion",
+    "entry/exit": "Contact",
+    "entry/exit 2": "Contact",
+    "fire": "Fire",
+    "technical": "Fault",
+}
+
+
 DEVICE_CLASS = {
     "alarm": BinarySensorDeviceClass.MOTION,
     "entry/exit": BinarySensorDeviceClass.OPENING,
     "entry/exit 2": BinarySensorDeviceClass.OPENING,
     "fire": BinarySensorDeviceClass.SMOKE,
-    "technical": BinarySensorDeviceClass.POWER,
+    "technical": BinarySensorDeviceClass.PROBLEM,
 }
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up SPC binary sensor entity from a config entry."""
     data = hass.data[DOMAIN][entry.entry_id]
+
     coordinator = data["coordinator"]
-    device_info = data["device_info"]
+    get_zone_device_info = data["get_zone_device_info"]
+    unique_prefix = data["unique_prefix"]
 
     async_add_entities([
-        SPCZoneOpen(
+        SPCZoneInputOpen(
             coordinator=coordinator,
-            device_info=device_info,
+            device_info=get_zone_device_info(zone),
+            unique_prefix=unique_prefix,
             zone=zone,
         )
         for zone in coordinator.data["zones"].values()
     ])
 
 
-class SPCZoneOpen(CoordinatorEntity, BinarySensorEntity):
-    """Binary sensor representing SPC zone open state."""
+class SPCZoneInputOpen(CoordinatorEntity, BinarySensorEntity):
+    """Binary sensor representing SPC zone input open state."""
 
     _attr_has_entity_name = True
 
-    def __init__(self, coordinator, device_info, zone):
+    def __init__(self, coordinator, device_info, unique_prefix, zone):
         super().__init__(coordinator)
 
         zone_id = zone["zone_id"]
         zone_name = zone["zone_name"]
-        device_class = DEVICE_CLASS.get(zone["zone_type"])
-        serial_number = device_info["serial_number"]
-        unique_id = f"spc{serial_number}-zone{zone_id}-open"
+        zone_type = zone["zone_type"]
 
         self._zone_id = zone_id
-        self._attr_name = f"Zone {zone_id} {zone_name} Open"
-        self._attr_device_class = device_class
-        self._attr_unique_id = unique_id
+        self._attr_name = ENTITY_NAME.get(zone_type, "Input Open")
+        self._attr_device_class = DEVICE_CLASS.get(zone_type)
+        self._attr_unique_id = f"{unique_prefix}-zone{zone_id}-open"
         self._attr_device_info = device_info
 
     @property
