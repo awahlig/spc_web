@@ -9,6 +9,7 @@ from .const import DOMAIN
 
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up SPC sensor entities from a config entry."""
+
     data = hass.data[DOMAIN][entry.entry_id]
 
     coordinator = data["coordinator"]
@@ -64,7 +65,6 @@ class SPCZoneInput(CoordinatorEntity, SensorEntity):
 
     @property
     def native_value(self):
-        """Return the current zone input state."""
         zone = self.coordinator.data["zones"].get(self._zone_id)
         if zone:
             return zone["input"]
@@ -101,7 +101,6 @@ class SPCZoneStatus(CoordinatorEntity, SensorEntity):
 
     @property
     def native_value(self):
-        """Return the current zone status."""
         zone = self.coordinator.data["zones"].get(self._zone_id)
         if zone:
             return zone["status"]

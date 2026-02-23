@@ -8,6 +8,7 @@ from .spc import SPCError
 
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up SPC switch entities from a config entry."""
+
     data = hass.data[DOMAIN][entry.entry_id]
 
     coordinator = data["coordinator"]
@@ -45,7 +46,6 @@ class SPCZoneInhibit(CoordinatorEntity, SwitchEntity):
 
     @property
     def is_on(self):
-        """Return True when zone is inhibited."""
         zone = self.coordinator.data["zones"].get(self._zone_id)
         if zone:
             return (zone["status"] == "inhibit")
@@ -60,9 +60,7 @@ class SPCZoneInhibit(CoordinatorEntity, SwitchEntity):
             await self.coordinator.async_request_refresh()
 
     async def async_turn_on(self, **kwargs):
-        """Inhibit this zone."""
         await self._async_set_inhibit(True)
 
     async def async_turn_off(self, **kwargs):
-        """Uninhibit this zone."""
         await self._async_set_inhibit(False)

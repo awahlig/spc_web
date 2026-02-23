@@ -114,36 +114,31 @@ def parse_title(html):
 
 
 def parse_serial_number(html):
-    """Extract the SPC serial number if present; return empty string otherwise."""
     re_match = RE_SERIAL.search(html)
     return (re_match.group(1) if re_match else "")
 
 
 def parse_session_id(html):
-    """Get the session token from a WebUI page or raise if missing."""
     re_match = RE_SESSION.search(html)
     if re_match:
         return re_match.group(1)
     raise SPCParseError("Session ID not found in HTML")
 
 
-def parse_arm_state(html):
-    """Pull out the arm state text from the system summary page."""
+def parse_system_summary_arm_state(html):
     re_match = RE_ARM_STATE.search(html)
     if re_match:
         return re_match.group(1).strip().lower()
     raise SPCParseError("Arm state not found in HTML")
 
 
-def parse_important_message(html):
-    """Pull out the red banner message. Returns None if not found."""
+def parse_system_summary_important_message(html):
     re_match = RE_IMPORTANT.search(html)
     if re_match:
         return re_match.group(1).strip()
 
 
-def parse_zones(html):
-    """Pull out the zones."""
+def parse_status_zones(html):
     for m in RE_ZONE.finditer(html):
         yield {
             "zone_id": int(m.group(1)),
@@ -164,7 +159,7 @@ def is_login_page(html):
     return bool(RE_LOGIN.search(html))
 
 
-def is_access_denied(html):
+def is_login_access_denied(html):
     return bool(RE_DENIED.search(html))
 
 
@@ -206,13 +201,14 @@ class SPCSession:
             "password": password,
         }
 
-        self.sid = ""
-        self.model = ""
-        self.serial_number = ""
-        self.site = ""
+        self.sid = ""               # session ID
+        self.model = ""             # panel model name
+        self.serial_number = ""     # panel serial number
+        self.site = ""              # alarm site name
 
     async def aclose(self):
         """Close the underlying HTTPX client."""
+
         await self.client.aclose()
 
     def _get_secure_url(self, page, update=False):
@@ -234,13 +230,14 @@ class SPCSession:
         return await do()
 
     async def login(self):
-        """Log in and populate session ID, serial number, model, and site."""
+        """Log in and populate sid, serial, model, and site."""
+
         url = "/login.htm?action=login&language=0"
         resp = await self.client.post(url, data=self.creds)
         html = self._get_html(resp)
 
         if is_login_page(html):
-            if is_access_denied(html):
+            if is_login_access_denied(html):
                 raise SPCLoginError("SPC login failed: access denied")
             raise SPCLoginError("SPC login failed: still on login page")
 
@@ -248,17 +245,20 @@ class SPCSession:
         self.serial_number = parse_serial_number(html)
 
     async def get_arm_state(self):
-        """Fetch current global arm state."""
+        """Fetch current arm state (all areas)."""
+
         async def do():
             url = self._get_secure_url("system_summary")
             resp = await self.client.get(url)
             return self._get_html(resp)
 
         html = await self._do_with_login(do)
-        return parse_arm_state(html)
+        return parse_system_summary_arm_state(html)
 
     async def set_arm_state(self, arm_state):
-        """Send a command to change the global arm state."""
+        """Send a command to change the arm state (all areas).
+        Returns the new arm state (as returned by SPC)."""
+
         if arm_state == "unset":
             data = {"unset_all_areas": "Unset"}
         elif arm_state == "fullset":
@@ -274,23 +274,28 @@ class SPCSession:
             return self._get_html(resp)
 
         html = await self._do_with_login(do)
-        msg = parse_important_message(html)
+        msg = parse_system_summary_important_message(html)
         if msg:
             raise SPCCommandError(msg)
-        return parse_arm_state(html)
+        return parse_system_summary_arm_state(html)
 
     async def get_zones(self):
-        """Fetch a list of zones."""
+        """Fetch a list of zones. Each zone is a dictionary with
+        following keys: zone_id, zone_name, area_id, area_name,
+        zone_type, input, status."""
+
         async def do():
             url = self._get_secure_url("status_zones")
             resp = await self.client.get(url)
             return self._get_html(resp)
 
         html = await self._do_with_login(do)
-        return list(parse_zones(html))
+        return list(parse_status_zones(html))
 
     async def set_zone_inhibit(self, zone_id, inhibit):
-        """Inhibit/deinhibit a zone."""
+        """Inhibit or deinhibit a zone. Returns the new state
+        of the zone."""
+
         if inhibit:
             data = {f"inhibit{zone_id}": "Inhibit"}
         else:
@@ -303,5 +308,5 @@ class SPCSession:
             return self._get_html(resp)
 
         html = await self._do_with_login(do)
-        return next((zone for zone in parse_zones(html)
+        return next((zone for zone in parse_status_zones(html)
                      if zone["zone_id"] == zone_id), None)
