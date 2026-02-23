@@ -28,13 +28,21 @@
   },
   "entity": {
     "sensor": {
+      "zone_input": {
+        "state": {
+          "closed": "Closed",
+          "open": "Open",
+          "short": "Short",
+          "discon": "Disconnected",
+          "offline": "Offline"
+        }
+      },
       "zone_status": {
         "state": {
           "normal": "Normal",
-          "actuated": "Actuated",
+          "inhibit": "Inhibit",
           "tamper": "Tamper",
-          "disconnected": "Disconnected",
-          "inhibit": "Inhibit"
+          "actuated": "Actuated"
         }
       }
     }
