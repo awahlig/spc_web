@@ -57,7 +57,7 @@ async def async_setup_entry(hass, entry):
         hass,
         LOGGER,
         config_entry=entry,
-        name="SPC WebUI",
+        name="Vanderbilt SPC Web",
         update_interval=poll_interval,
         update_method=update,
         always_update=False,

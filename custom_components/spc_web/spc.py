@@ -180,7 +180,7 @@ class SPCCommandError(SPCError):
 
 
 class SPCSession:
-    """Async helper around the SPC WebUI session workflow and HTML parsing."""
+    """Async helper around the SPC session."""
 
     def __init__(self, url, userid, password):
         self._userid = userid
@@ -303,7 +303,7 @@ class SPCSession:
 
         async def do():
             url = self._get_secure_url("status_zones", update=True)
-            url += "&zone=1"  # XXX webui always sends this for some reason
+            url += "&zone=1"  # XXX website always sends this for some reason
             resp = await self.client.post(url, data=data)
             return self._get_html(resp)
 

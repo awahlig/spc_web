@@ -24,8 +24,8 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
 )
 
 
-class SPCWebUIConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle user setup of the SPC WebUI integration."""
+class SPCConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+    """Handle user setup of the integration."""
 
     VERSION = 1
 
@@ -69,10 +69,10 @@ class SPCWebUIConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @staticmethod
     @callback
     def async_get_options_flow(config_entry):
-        return SPCWebUIOptionsFlow()
+        return SPCOptionsFlow()
 
 
-class SPCWebUIOptionsFlow(config_entries.OptionsFlow):
+class SPCOptionsFlow(config_entries.OptionsFlow):
     """Options flow to tweak polling interval after setup."""
 
     async def async_step_init(self, user_input=None):

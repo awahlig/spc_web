@@ -1,6 +1,6 @@
-# Vanderbilt SPC (Web UI)
+# Vanderbilt SPC Web
 
-This integration connects Home Assistant to a Vanderbilt SPC alarm panel using its built-in web UI.
+Connects Home Assistant to a Vanderbilt SPC alarm panel via its built-in web interface.
 
 Unlike the [official integration](https://www.home-assistant.io/integrations/spc/), it does not
 require a gateway.
@@ -28,7 +28,7 @@ Use this integration only on trusted local networks or via VPN.
 
 ### Manual
 
-1. Copy the `custom_components/spc_webui` folder in `config/custom_components` in Home Assistant.
+1. Copy the `custom_components/spc_web` folder in `config/custom_components` in Home Assistant.
 2. Restart Home Assistant.
 
 ### HACS

@@ -1,4 +1,4 @@
-DOMAIN = "spc_webui"
+DOMAIN = "spc_web"
 MANUFACTURER = "Vanderbilt"
 
 CONF_URL = "url"

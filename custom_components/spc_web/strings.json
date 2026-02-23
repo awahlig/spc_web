@@ -2,8 +2,8 @@
   "config": {
     "step": {
       "user": {
-        "title": "Vanderbilt SPC (Web UI)",
-        "description": "Control SPC via its Web UI.",
+        "title": "Vanderbilt SPC Web",
+        "description": "Enables control and monitoring of SPC alarm panels through their web interface.",
         "data": {
           "url": "URL of the SPC panel",
           "userid": "User ID",

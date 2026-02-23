@@ -1,0 +1,12 @@
+{
+  "domain": "spc_web",
+  "name": "Vanderbilt SPC Web",
+  "version": "0.1.0",
+  "codeowners": ["@awahlig"],
+  "documentation": "https://github.com/awahlig/spc_web",
+  "issue_tracker": "https://github.com/awahlig/spc_web/issues",
+  "requirements": ["httpx"],
+  "codeowners": [],
+  "iot_class": "local_polling",
+  "config_flow": true
+}
