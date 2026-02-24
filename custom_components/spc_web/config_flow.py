@@ -23,6 +23,12 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
     }
 )
 
+OPTIONS_SCHEMA = vol.Schema(
+    {
+        vol.Optional(CONF_POLL_INTERVAL, default=DEFAULT_POLL_INTERVAL): vol.Coerce(int),
+    }
+)
+
 
 class SPCConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle user setup of the integration."""
@@ -72,17 +78,16 @@ class SPCConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return SPCOptionsFlow()
 
 
-class SPCOptionsFlow(config_entries.OptionsFlow):
+class SPCOptionsFlow(config_entries.OptionsFlowWithReload):
     """Options flow to tweak polling interval after setup."""
 
     async def async_step_init(self, user_input=None):
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            return self.async_create_entry(data=user_input)
 
-        current = self.config_entry.data.get(CONF_POLL_INTERVAL, DEFAULT_POLL_INTERVAL)
-        schema = vol.Schema(
-            {
-                vol.Optional(CONF_POLL_INTERVAL, default=current): vol.Coerce(int),
-            }
+        return self.async_show_form(
+            step_id="init",
+            data_schema=self.add_suggested_values_to_schema(
+                OPTIONS_SCHEMA, self.config_entry.options
+            ),
         )
-        return self.async_show_form(step_id="init", data_schema=schema)
