@@ -6,12 +6,17 @@ from homeassistant.core import callback
 from .const import (
     DOMAIN,
     CONF_URL,
+    CONF_LEGACY_SSL,
     CONF_USERID,
     CONF_PASSWORD,
     CONF_POLL_INTERVAL,
     DEFAULT_POLL_INTERVAL,
 )
-from .spc import SPCSession, SPCLoginError
+from .spc import (
+    create_spc_session,
+    create_legacy_ssl_spc_session,
+    SPCLoginError,
+)
 
 
 STEP_USER_DATA_SCHEMA = vol.Schema(
@@ -20,6 +25,7 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
         vol.Required(CONF_USERID): str,
         vol.Required(CONF_PASSWORD): str,
         vol.Optional(CONF_POLL_INTERVAL, default=DEFAULT_POLL_INTERVAL): vol.Coerce(int),
+        vol.Optional(CONF_LEGACY_SSL): bool,
     }
 )
 
@@ -42,16 +48,27 @@ class SPCConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             userid = user_input[CONF_USERID]
             password = user_input[CONF_PASSWORD]
             poll_interval = user_input.get(CONF_POLL_INTERVAL, DEFAULT_POLL_INTERVAL)
+            legacy_ssl = user_input.get(CONF_LEGACY_SSL, False)
 
-            spc = SPCSession(url=url, userid=userid, password=password)
+            if legacy_ssl:
+                spc = create_legacy_ssl_spc_session(url, userid, password)
+                close_spc = spc.client.aclose
+            else:
+                spc = create_spc_session(self.hass, url, userid, password)
+                close_spc = None
+
             try:
                 await spc.login()
+
             except SPCLoginError:
-                errors["base"] = "invalid_auth"
-            except Exception:
-                errors["base"] = "cannot_connect"
+                errors["base"] = "auth_failed"
+
+            except Exception as error:
+                errors["base"] = str(error)
+
             finally:
-                await spc.aclose()
+                if close_spc:
+                    await close_spc()
 
             if not errors:
                 await self.async_set_unique_id(spc.serial_number)
@@ -63,12 +80,14 @@ class SPCConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_USERID: userid,
                         CONF_PASSWORD: password,
                         CONF_POLL_INTERVAL: poll_interval,
+                        CONF_LEGACY_SSL: legacy_ssl,
                     },
                 )
 
         return self.async_show_form(
             step_id="user",
-            data_schema=STEP_USER_DATA_SCHEMA,
+            data_schema=self.add_suggested_values_to_schema(
+                STEP_USER_DATA_SCHEMA, user_input),
             errors=errors,
         )
 

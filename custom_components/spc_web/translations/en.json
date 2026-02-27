@@ -8,13 +8,13 @@
           "url": "URL of the SPC panel",
           "userid": "User ID",
           "password": "Password",
-          "poll_interval": "Poll interval (seconds)"
+          "poll_interval": "Poll interval (seconds)",
+          "legacy_ssl": "Use legacy SSL (direct SPC connection)"
         }
       }
     },
     "error": {
-      "cannot_connect": "Cannot connect",
-      "invalid_auth": "Invalid credentials"
+      "auth_failed": "Authentication failed"
     }
   },
   "options": {

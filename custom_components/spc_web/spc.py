@@ -1,11 +1,10 @@
 import logging
 import re
 import ssl
-from pathlib import Path
-from datetime import datetime, timezone
-from urllib.parse import urlparse
 
 import httpx
+
+from homeassistant.helpers.httpx_client import get_async_client
 
 
 # Page: any
@@ -61,46 +60,44 @@ RE_ZONE = re.compile(
 LOGGER = logging.getLogger(__name__)
 
 
-def get_ssl_context():
-    """
-    SSL context compatible with legacy SPC panels.
+def create_spc_session(hass, url, userid, password):
+    """Create an instance of SPCSession using the default HASS httpx client.
+    Use this when connecting to SPC over HTTP or when using modern TLS."""
 
-    SPC typically requires:
+    return SPCSession(get_async_client(hass), url, userid, password)
+
+
+def create_legacy_ssl_spc_session(url, userid, password):
+    """Create an instance of SPCSession using a custom httpx client that
+    is configured for legacy TLS. This version can connect to the SPC
+    panel over HTTPS directly.
+    Await session.client.aclose() to release the underlying httpx client."""
+
+    client = httpx.AsyncClient(
+        timeout=httpx.Timeout(10.0),
+        verify=get_legacy_ssl_context(),
+    )
+    return SPCSession(client, url, userid, password)
+
+
+def get_legacy_ssl_context():
+    """
+    SSL context compatible with SPC panels.
+
+    SPC requires:
     - TLS 1.2 only
-    - invalid/self-signed cert acceptance
-    - legacy RSA cipher (AES256-SHA) at lower OpenSSL security level
-    - legacy renegotiation allowance (if available)
+    - invalid/self-signed cert
+    - legacy RSA cipher (AES256-SHA)
+    - legacy renegotiation
     """
 
     ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-
-    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
     ctx.maximum_version = ssl.TLSVersion.TLSv1_2
-
+    ctx.set_ciphers("AES256-SHA")
+    ctx.options |= getattr(ssl, "OP_LEGACY_SERVER_CONNECT", 0)
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
-
-    # Legacy cipher + lower seclevel (key for OpenSSL 3.x)
-    try:
-        ctx.set_ciphers("AES256-SHA:@SECLEVEL=1")
-    except ssl.SSLError:
-        ctx.set_ciphers("DEFAULT:@SECLEVEL=1")
-
-    opt = getattr(ssl, "OP_LEGACY_SERVER_CONNECT", None)
-    if opt is not None:
-        ctx.options |= opt
-    else:
-        LOGGER.warning("SSL lacks OP_LEGACY_SERVER_CONNECT; SPC handshake may fail")
-
     return ctx
-
-
-def normalize_url(url, default_scheme="https"):
-    """Add default scheme if missing."""
-    parsed = urlparse(url)
-    if not parsed.scheme:
-        return f"{default_scheme}://{url}"
-    return url
 
 
 def parse_title(html):
@@ -180,22 +177,11 @@ class SPCCommandError(SPCError):
 
 
 class SPCSession:
-    """Async helper around the SPC session."""
+    """Represents a web session with the SPC panel."""
 
-    def __init__(self, url, userid, password):
-        self._userid = userid
-        self._password = password
-
-        self.client = httpx.AsyncClient(
-            base_url=normalize_url(url),
-            verify=get_ssl_context(),
-            timeout=httpx.Timeout(10.0),
-            limits=httpx.Limits(
-                max_connections=1,
-                max_keepalive_connections=0,
-            ),
-        )
-
+    def __init__(self, client, url, userid, password):
+        self.client = client
+        self.url = url.rstrip("/")
         self.creds = {
             "userid": userid,
             "password": password,
@@ -206,18 +192,18 @@ class SPCSession:
         self.serial_number = ""     # panel serial number
         self.site = ""              # alarm site name
 
-    async def aclose(self):
-        """Close the underlying HTTPX client."""
+    async def _request(self, method, path, params=None, data=None):
+        resp = await self.client.request(
+            method, self.url + path,
+            params={
+                "language": "0",
+            } | (params or {}),
+            data=data,
+        )
 
-        await self.client.aclose()
-
-    def _get_secure_url(self, page, update=False):
-        action = ("&action=update" if update else "")
-        return f"/secure.htm?session={self.sid}&page={page}&language=0{action}"
-
-    def _get_html(self, resp):
         resp.raise_for_status()
         html = resp.text
+
         self.model, self.site = parse_title(html)
         return html
 
@@ -232,9 +218,11 @@ class SPCSession:
     async def login(self):
         """Log in and populate sid, serial, model, and site."""
 
-        url = "/login.htm?action=login&language=0"
-        resp = await self.client.post(url, data=self.creds)
-        html = self._get_html(resp)
+        html = await self._request(
+            "POST", "/login.htm",
+            params={"action": "login"},
+            data=self.creds,
+        )
 
         if is_login_page(html):
             if is_login_access_denied(html):
@@ -248,9 +236,13 @@ class SPCSession:
         """Fetch current arm state (all areas)."""
 
         async def do():
-            url = self._get_secure_url("system_summary")
-            resp = await self.client.get(url)
-            return self._get_html(resp)
+            return await self._request(
+                "GET", "/secure.htm",
+                params={
+                    "session": self.sid,
+                    "page": "system_summary",
+                },
+            )
 
         html = await self._do_with_login(do)
         return parse_system_summary_arm_state(html)
@@ -269,9 +261,15 @@ class SPCSession:
             raise SPCCommandError(f"{arm_state}: unknown arm state")
 
         async def do():
-            url = self._get_secure_url("system_summary", update=True)
-            resp = await self.client.post(url, data=data)
-            return self._get_html(resp)
+            return await self._request(
+                "POST", "/secure.htm",
+                params={
+                    "session": self.sid,
+                    "page": "system_summary",
+                    "action": "update",
+                },
+                data=data,
+            )
 
         html = await self._do_with_login(do)
         msg = parse_system_summary_important_message(html)
@@ -285,9 +283,13 @@ class SPCSession:
         zone_type, input, status."""
 
         async def do():
-            url = self._get_secure_url("status_zones")
-            resp = await self.client.get(url)
-            return self._get_html(resp)
+            return await self._request(
+                "GET", "/secure.htm",
+                params={
+                    "session": self.sid,
+                    "page": "status_zones",
+                },
+            )
 
         html = await self._do_with_login(do)
         return list(parse_status_zones(html))
@@ -302,10 +304,17 @@ class SPCSession:
             data = {f"uninhibit{zone_id}": "Deinhibit"}
 
         async def do():
-            url = self._get_secure_url("status_zones", update=True)
-            url += "&zone=1"  # XXX website always sends this for some reason
-            resp = await self.client.post(url, data=data)
-            return self._get_html(resp)
+            return await self._request(
+                "POST", "/secure.htm",
+                params={
+                    "session": self.sid,
+                    "page": "status_zones",
+                    "action": "update",
+                    # XXX website always sends this for some reason
+                    "zone": "1",
+                },
+                data=data,
+            )
 
         html = await self._do_with_login(do)
         return next((zone for zone in parse_status_zones(html)

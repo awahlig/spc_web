@@ -16,9 +16,14 @@ from .const import (
     CONF_USERID,
     CONF_PASSWORD,
     CONF_POLL_INTERVAL,
+    CONF_LEGACY_SSL,
     DEFAULT_POLL_INTERVAL,
 )
-from .spc import SPCSession, SPCError
+from .spc import (
+    create_spc_session,
+    create_legacy_ssl_spc_session,
+    SPCError,
+)
 
 
 LOGGER = logging.getLogger(__name__)
@@ -35,7 +40,15 @@ async def async_setup_entry(hass, entry):
     )
     poll_interval = timedelta(seconds=int(poll_seconds))
 
-    spc = SPCSession(url=url, userid=userid, password=password)
+    legacy_ssl = entry.data.get(CONF_LEGACY_SSL, False)
+
+    if legacy_ssl:
+        spc = create_legacy_ssl_spc_session(url, userid, password)
+        close_spc = spc.session.aclose
+    else:
+        spc = create_spc_session(hass, url, userid, password)
+        close_spc = None
+
     await spc.login()
 
     async def update():
@@ -45,13 +58,13 @@ async def async_setup_entry(hass, entry):
                 "zones": {zone["zone_id"]: zone
                           for zone in await spc.get_zones()},
             }
-        
-        except SPCError as e:
+
+        except SPCError as error:
             # Treat as hard failure. Show unavailable.
-            raise UpdateFailed(str(e)) from e
-        
-        except (httpx.HTTPError, ValueError) as e:
-            raise UpdateFailed(f"SPC communication error: {e!s}") from e
+            raise UpdateFailed(str(error)) from error
+
+        except (httpx.HTTPError, ValueError) as error:
+            raise UpdateFailed(f"SPC communication error: {error!s}") from error
 
     coordinator = DataUpdateCoordinator(
         hass,
@@ -89,6 +102,7 @@ async def async_setup_entry(hass, entry):
         "alarm_device_info": alarm_device_info,
         "get_zone_device_info": get_zone_device_info,
         "unique_prefix": f"spc{spc.serial_number}",
+        "close_spc": close_spc,
     }
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -99,6 +113,6 @@ async def async_unload_entry(hass, entry):
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
         data = hass.data[DOMAIN].pop(entry.entry_id, None)
-        if data:
-            await data["spc"].aclose()
+        if data and data["close_spc"]:
+            await data["close_spc"]()
     return unload_ok
