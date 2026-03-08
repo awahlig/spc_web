@@ -9,6 +9,7 @@
           "userid": "User ID",
           "password": "Password",
           "poll_interval": "Poll interval (seconds)",
+          "verify_ssl": "Verify SSL certificate",
           "legacy_ssl": "Use legacy SSL (direct SPC connection)"
         }
       }

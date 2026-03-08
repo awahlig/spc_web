@@ -6,11 +6,12 @@ from homeassistant.core import callback
 from .const import (
     DOMAIN,
     CONF_URL,
-    CONF_LEGACY_SSL,
     CONF_USERID,
     CONF_PASSWORD,
     CONF_POLL_INTERVAL,
     DEFAULT_POLL_INTERVAL,
+    CONF_VERIFY_SSL,
+    CONF_LEGACY_SSL,
 )
 from .spc import (
     create_spc_session,
@@ -24,8 +25,9 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
         vol.Required(CONF_URL): str,
         vol.Required(CONF_USERID): str,
         vol.Required(CONF_PASSWORD): str,
-        vol.Optional(CONF_POLL_INTERVAL, default=DEFAULT_POLL_INTERVAL): vol.Coerce(int),
-        vol.Optional(CONF_LEGACY_SSL): bool,
+        vol.Required(CONF_POLL_INTERVAL, default=DEFAULT_POLL_INTERVAL): vol.Coerce(int),
+        vol.Required(CONF_VERIFY_SSL, default=True): bool,
+        vol.Required(CONF_LEGACY_SSL, default=False): bool,
     }
 )
 
@@ -47,14 +49,16 @@ class SPCConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             url = user_input[CONF_URL]
             userid = user_input[CONF_USERID]
             password = user_input[CONF_PASSWORD]
-            poll_interval = user_input.get(CONF_POLL_INTERVAL, DEFAULT_POLL_INTERVAL)
-            legacy_ssl = user_input.get(CONF_LEGACY_SSL, False)
+            poll_interval = user_input[CONF_POLL_INTERVAL]
+            verify_ssl = user_input[CONF_VERIFY_SSL]
+            legacy_ssl = user_input[CONF_LEGACY_SSL]
 
             if legacy_ssl:
                 spc = create_legacy_ssl_spc_session(url, userid, password)
                 close_spc = spc.client.aclose
             else:
-                spc = create_spc_session(self.hass, url, userid, password)
+                spc = create_spc_session(self.hass, url, userid, password,
+                                         verify_ssl=verify_ssl)
                 close_spc = None
 
             try:
@@ -75,13 +79,7 @@ class SPCConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
                 return self.async_create_entry(
                     title=url,
-                    data={
-                        CONF_URL: url,
-                        CONF_USERID: userid,
-                        CONF_PASSWORD: password,
-                        CONF_POLL_INTERVAL: poll_interval,
-                        CONF_LEGACY_SSL: legacy_ssl,
-                    },
+                    data=user_input,
                 )
 
         return self.async_show_form(

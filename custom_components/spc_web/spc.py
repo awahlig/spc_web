@@ -60,11 +60,12 @@ RE_ZONE = re.compile(
 LOGGER = logging.getLogger(__name__)
 
 
-def create_spc_session(hass, url, userid, password):
+def create_spc_session(hass, url, userid, password, verify_ssl=True):
     """Create an instance of SPCSession using the default HASS httpx client.
     Use this when connecting to SPC over HTTP or when using modern TLS."""
 
-    return SPCSession(get_async_client(hass), url, userid, password)
+    client = get_async_client(hass, verify_ssl=verify_ssl)
+    return SPCSession(client, url, userid, password)
 
 
 def create_legacy_ssl_spc_session(url, userid, password):

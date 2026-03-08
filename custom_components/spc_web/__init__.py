@@ -16,8 +16,8 @@ from .const import (
     CONF_USERID,
     CONF_PASSWORD,
     CONF_POLL_INTERVAL,
+    CONF_VERIFY_SSL,
     CONF_LEGACY_SSL,
-    DEFAULT_POLL_INTERVAL,
 )
 from .spc import (
     create_spc_session,
@@ -36,17 +36,19 @@ async def async_setup_entry(hass, entry):
 
     poll_seconds = entry.options.get(
         CONF_POLL_INTERVAL,
-        entry.data.get(CONF_POLL_INTERVAL, DEFAULT_POLL_INTERVAL),
+        entry.data[CONF_POLL_INTERVAL],
     )
     poll_interval = timedelta(seconds=int(poll_seconds))
 
-    legacy_ssl = entry.data.get(CONF_LEGACY_SSL, False)
+    verify_ssl = entry.data[CONF_VERIFY_SSL]
+    legacy_ssl = entry.data[CONF_LEGACY_SSL]
 
     if legacy_ssl:
         spc = create_legacy_ssl_spc_session(url, userid, password)
         close_spc = spc.session.aclose
     else:
-        spc = create_spc_session(hass, url, userid, password)
+        spc = create_spc_session(hass, url, userid, password,
+                                 verify_ssl=verify_ssl)
         close_spc = None
 
     await spc.login()
